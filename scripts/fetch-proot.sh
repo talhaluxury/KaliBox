@@ -59,13 +59,6 @@ fetch_pkg() { # <package> <dest dir>
 fetch_pkg proot "$WORK/proot"
 fetch_pkg libtalloc "$WORK/talloc"
 
-DEPS="$(pkg_field proot Depends || true)"
-log "proot Depends: ${DEPS:-<none>}"
-if echo "$DEPS" | tr ',' '\n' | sed 's/([^)]*)//g; s/ //g' | grep -vxE 'libtalloc|libandroid-support|' >/dev/null 2>&1; then
-  echo "[fetch-proot] NOTE: proot depends on additional packages ($DEPS)." >&2
-  echo "[fetch-proot]       If proot fails to start on the phone, add them here." >&2
-fi
-
 PROOT_BIN="$(find "$WORK/proot" -type f -name proot -path '*/bin/*' | head -n1)"
 LOADER="$(find "$WORK/proot" -type f -path '*libexec/proot/loader' | head -n1)"
 TALLOC="$(find "$WORK/talloc" -type f -name 'libtalloc.so*' | sort | head -n1)"
@@ -79,8 +72,47 @@ cp "$LOADER"    "$OUT/libproot-loader.so"
 cp "$TALLOC"    "$OUT/libtalloc.so"
 chmod 755 "$OUT"/lib*.so
 
+# --- runtime dependencies of proot (e.g. libandroid-shmem.so) -------------------------------
+# proot's DT_NEEDED entries must be resolvable from the app's native lib dir, so every "lib*"
+# dependency listed in the Termux index is downloaded too (recursively) and shipped as lib*.so.
+DEPS="$(pkg_field proot Depends || true)"
+log "proot Depends: ${DEPS:-<none>}"
+QUEUE=()
+SEEN=" proot libtalloc "
+parse_deps() { # "a (>= 1), b | c" -> names
+  echo "$1" | tr ',' '\n' | sed 's/|.*//; s/(.*//; s/ //g' | grep -v '^$' || true
+}
+while IFS= read -r d; do [ -n "$d" ] && QUEUE+=("$d"); done < <(parse_deps "$DEPS")
+# Safety net: current Termux proot needs libandroid-shmem even if the Depends parse changed.
+QUEUE+=("libandroid-shmem")
+i=0
+while [ "$i" -lt "${#QUEUE[@]}" ]; do
+  d="${QUEUE[$i]}"; i=$((i + 1))
+  case "$SEEN" in *" $d "*) continue;; esac
+  SEEN="$SEEN$d "
+  case "$d" in
+    lib*) ;;
+    *) log "Skipping non-library dependency: $d"; continue;;
+  esac
+  if [ -z "$(pkg_field "$d" Filename)" ]; then
+    log "WARNING: dependency $d not found in index (skipping)"
+    continue
+  fi
+  fetch_pkg "$d" "$WORK/dep_$d"
+  found=0
+  while IFS= read -r so; do
+    [ -n "$so" ] || continue
+    cp -L "$so" "$OUT/$(basename "$so")"
+    log "bundled $(basename "$so") (from $d)"
+    found=1
+  done < <(find "$WORK/dep_$d" \( -type f -o -type l \) -name '*.so' -path '*/lib/*')
+  [ "$found" -eq 1 ] || log "WARNING: no lib*.so found in $d"
+  while IFS= read -r dd; do [ -n "$dd" ] && QUEUE+=("$dd"); done < <(parse_deps "$(pkg_field "$d" Depends || true)")
+done
+chmod 755 "$OUT"/lib*.so
+
 # Verify: non-empty ELF files
-for f in libproot.so libproot-loader.so libtalloc.so; do
+for f in $(cd "$OUT" && ls lib*.so); do
   [ -s "$OUT/$f" ] || die "$f is empty"
   [ "$(head -c4 "$OUT/$f" | LC_ALL=C od -An -c | tr -d ' ')" = '177ELF' ] || die "$f is not an ELF file"
   log "OK  $OUT/$f ($(stat -c %s "$OUT/$f") bytes)"
