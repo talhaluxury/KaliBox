@@ -15,5 +15,6 @@ class AppPaths(ctx: Context) {
     val nativeDir: String = ctx.applicationInfo.nativeLibraryDir
 
     fun rootfsInstalled(): Boolean = File(rootfs, "usr/bin/bash").exists()
-    fun desktopInstalled(): Boolean = File(rootfs, "usr/bin/vncserver").exists() && File(rootfs, "usr/bin/startxfce4").exists()
+    fun desktopInstalled(): Boolean = (File(rootfs, "usr/bin/vncserver").exists() || File(rootfs, "usr/bin/tigervncserver").exists()) &&
+        File(rootfs, "usr/bin/startxfce4").exists()
 }
