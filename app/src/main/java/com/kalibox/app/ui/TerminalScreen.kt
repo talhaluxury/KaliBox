@@ -1,6 +1,5 @@
 package com.kalibox.app.ui
 
-import android.graphics.Typeface
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -72,7 +71,6 @@ fun TerminalScreen(vm: MainViewModel, onBack: () -> Unit) {
                 factory = { c ->
                     TerminalView(c, null).apply {
                         setTerminalViewClient(SessionHub.viewClient)
-                        setTypeface(Typeface.MONOSPACE)
                         isFocusable = true
                         isFocusableInTouchMode = true
                         SessionHub.view = this
