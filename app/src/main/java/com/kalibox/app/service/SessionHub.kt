@@ -119,7 +119,6 @@ object SessionHub {
         override fun onBell(session: TerminalSession) {}
         override fun onColorsChanged(session: TerminalSession) {}
         override fun onTerminalCursorStateChange(state: Boolean) {}
-        override fun setTerminalShellPid(session: TerminalSession, pid: Int) {}
         override fun getTerminalCursorStyle(): Int = TerminalEmulator.DEFAULT_TERMINAL_CURSOR_STYLE
         override fun logError(tag: String?, message: String?) { AppLog.e(tag ?: "term", message ?: "") }
         override fun logWarn(tag: String?, message: String?) { AppLog.i(tag ?: "term", "W: $message") }
