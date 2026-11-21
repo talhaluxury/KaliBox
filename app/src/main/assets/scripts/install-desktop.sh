@@ -1,11 +1,28 @@
 #!/bin/bash
 set -eo pipefail
 export DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
+# Gentle apt settings: fewer parallel connections/processes (Android can kill many child processes)
+cat > /etc/apt/apt.conf.d/98kalibox-net <<'CONF'
+Acquire::Queue-Mode "access";
+Acquire::http::Pipeline-Depth "0";
+Acquire::Retries "5";
+Acquire::http::Timeout "30";
+APT::Install-Recommends "false";
+CONF
+
 echo "==> apt update"
 apt-get update
+
+PKGS="kali-desktop-xfce tigervnc-standalone-server dbus-x11 novnc websockify firefox-esr xfce4-terminal fonts-dejavu-core fonts-liberation locales procps"
 echo "==> installing Kali XFCE + VNC + noVNC + Firefox (large download, be patient)"
-apt-get install -y kali-desktop-xfce tigervnc-standalone-server dbus-x11 novnc websockify \
-  firefox-esr fonts-dejavu-core fonts-liberation locales procps
+ok=0
+for i in 1 2 3 4; do
+  if apt-get install -y --no-install-recommends $PKGS; then ok=1; break; fi
+  echo "!! attempt $i failed (exit $?). Retrying; packages already downloaded are kept."
+  dpkg --configure -a || true
+  sleep 5
+done
+[ "$ok" = 1 ] || { echo "Desktop install failed after 4 attempts."; exit 1; }
 echo "==> configuring locale"
 sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true
 locale-gen >/dev/null 2>&1 || true
