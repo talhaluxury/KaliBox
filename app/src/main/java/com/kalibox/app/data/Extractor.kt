@@ -77,8 +77,11 @@ object Extractor {
                             try {
                                 Os.link(src.path, target.path)
                             } catch (_: ErrnoException) {
+                                // Android blocks hard links for app data: copy instead, and keep the mode
                                 src.copyTo(target, overwrite = true)
                             }
+                            // A copy gets default 0600 permissions: restore the executable bits (perl, perlbug...)
+                            Os.chmod(target.path, (e.mode and 0x1FF) or 0x180)
                         }
                         e.isFile -> {
                             target.parentFile?.mkdirs()
