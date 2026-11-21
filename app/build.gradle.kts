@@ -23,6 +23,14 @@ android {
     }
 
     signingConfigs {
+        // Fixed debug key (committed on purpose, it is not a secret) so every CI build has the SAME
+        // signature and a new APK can update the installed app without uninstalling.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (hasKeystore) {
             create("release") {
                 storeFile = file(ksPath!!)
