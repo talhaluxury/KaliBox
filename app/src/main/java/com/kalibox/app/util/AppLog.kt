@@ -40,6 +40,11 @@ object AppLog {
         return text
     }
 
+    fun tail(maxChars: Int = 6000): String = try {
+        val t = logFile?.readText() ?: ""
+        if (t.length > maxChars) t.takeLast(maxChars) else t.ifEmpty { "(log is empty)" }
+    } catch (e: Exception) { "Cannot read log: ${e.message}" }
+
     fun i(tag: String, msg: String) { Log.i(tag, msg); write("I", tag, msg, null) }
     fun e(tag: String, msg: String, t: Throwable? = null) {
         Log.e(tag, msg, t); write("E", tag, msg, t?.let { stack(it) })

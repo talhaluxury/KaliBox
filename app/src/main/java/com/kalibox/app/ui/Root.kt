@@ -90,7 +90,7 @@ fun Root(vm: MainViewModel) {
     notice?.let { msg ->
         AlertDialog(
             onDismissRequest = { vm.consumeNotice() },
-            text = { Text(msg) },
+            text = { androidx.compose.foundation.text.selection.SelectionContainer { Text(msg, fontSize = 12.sp, modifier = Modifier.verticalScroll(rememberScrollState())) } },
             confirmButton = { TextButton(onClick = { vm.consumeNotice() }) { Text("OK") } },
         )
     }

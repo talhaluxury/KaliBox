@@ -81,7 +81,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     AppLog.e("Install", "proot probe failed after install")
                     install.value = InstallProgress(
                         Stage.DONE, 100,
-                        "Kali installed, but proot could not start. Open Settings → Share logs. (See README: proot errors)",
+                        "Kali installed, but proot could not start:\n" + proot.lastProbeOutput,
                         running = false,
                     )
                 }
@@ -144,7 +144,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             log("Kali rootfs is not installed.")
             127
         } else if (!proot.probe()) {
-            log("ERROR: proot failed to start. See README → Troubleshooting → proot errors, then Share logs.")
+            log("ERROR: proot failed to start.")
+            proot.lastProbeOutput.lines().forEach { log(it) }
             127
         } else {
             proot.exec(script, env, log)
@@ -161,7 +162,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         if (!paths.rootfsInstalled()) { notice.value = "Install Kali first."; return }
         viewModelScope.launch {
             if (proot.probe()) SessionHub.newSession()
-            else notice.value = "proot failed to start. Open Settings → Share logs."
+            else notice.value = "proot failed to start.\n\n" + proot.lastProbeOutput
         }
     }
 
@@ -185,7 +186,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private fun launchDesktop() {
         viewModelScope.launch {
-            if (!proot.probe()) { notice.value = "proot failed to start. Open Settings → Share logs."; return@launch }
+            if (!proot.probe()) { notice.value = "proot failed to start.\n\n" + proot.lastProbeOutput; return@launch }
             DesktopController.start(app, proot, geometry())
             screen.value = Screen.DESKTOP
         }

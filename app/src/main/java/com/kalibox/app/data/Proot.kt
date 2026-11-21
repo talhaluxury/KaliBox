@@ -184,19 +184,40 @@ class Proot(private val ctx: Context, val paths: AppPaths, private val prefs: Pr
     }
 
     /** Verifies proot actually starts; falls back to PROOT_NO_SECCOMP=1 automatically. */
+    @Volatile var lastProbeOutput: String = ""
+
+    private fun diagnostics(): String = buildString {
+        append("nativeLibraryDir: ${paths.nativeDir}\n")
+        for (n in listOf("libproot.so", "libproot-loader.so", "libtalloc.so")) {
+            val f = File(paths.nativeDir, n)
+            append("$n: ${if (f.exists()) "${f.length()} bytes, exec=${f.canExecute()}" else "MISSING"}\n")
+        }
+        append("rootfs bash: ${File(paths.rootfs, "usr/bin/bash").exists()}\n")
+        append("Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}), ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
+    }
+
     suspend fun probe(): Boolean {
+        val out = StringBuilder(diagnostics())
+        fun grab(line: String) { if (out.length < 3000) out.append(line).append('\n') }
         suspend fun tryOnce(): Boolean = withTimeoutOrNull(30_000) {
-            try { exec("/bin/true") { AppLog.i("Proot", "probe: $it") } == 0 } catch (e: Exception) {
-                AppLog.e("Proot", "probe failed", e); false
+            try {
+                val code = exec("/bin/true") { AppLog.i("Proot", "probe: $it"); grab(it) }
+                grab("exit code: $code")
+                code == 0
+            } catch (e: Exception) {
+                AppLog.e("Proot", "probe failed", e); grab("exception: ${e.javaClass.simpleName}: ${e.message}"); false
             }
         } ?: false
-        if (tryOnce()) return true
+        if (tryOnce()) { lastProbeOutput = ""; return true }
         if (!prefs.noSeccomp) {
             AppLog.i("Proot", "Retrying with PROOT_NO_SECCOMP=1")
             prefs.noSeccomp = true
-            if (tryOnce()) return true
+            grab("--- retry with PROOT_NO_SECCOMP=1 ---")
+            if (tryOnce()) { lastProbeOutput = ""; return true }
             prefs.noSeccomp = false
         }
+        lastProbeOutput = out.toString()
+        AppLog.e("Proot", "probe failed:\n$lastProbeOutput")
         return false
     }
 }

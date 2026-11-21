@@ -33,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.verticalScroll
 import com.kalibox.app.MainViewModel
 import com.kalibox.app.domain.Screen
 import com.kalibox.app.domain.Tools
@@ -45,6 +47,7 @@ fun SettingsScreen(vm: MainViewModel) {
     val ctx = LocalContext.current
     val storage by vm.storageInfo.collectAsState()
     var confirmReset by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
     var resolution by remember { mutableStateOf(vm.prefs.resolution) }
     var scheme by remember { mutableStateOf(vm.prefs.colorScheme) }
     var newPw by remember { mutableStateOf("") }
@@ -144,9 +147,35 @@ fun SettingsScreen(vm: MainViewModel) {
         OutlinedButton(onClick = { confirmReset = true }) { Text("Reinstall / reset rootfs") }
 
         Section("Logs")
-        Button(onClick = { AppLog.shareIntent(ctx)?.let { ctx.startActivity(it) } }) { Text("Share logs") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { showLog = true }) { Text("View logs") }
+            OutlinedButton(onClick = { AppLog.shareIntent(ctx)?.let { ctx.startActivity(it) } }) { Text("Share logs") }
+        }
 
         Text("KaliBox is GPLv3. Authorized use only.", style = MaterialTheme.typography.bodySmall)
+    }
+
+    if (showLog) {
+        val logText = remember { AppLog.tail() }
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            title = { Text("Log (last lines)") },
+            text = {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(logText, fontSize = 10.sp, lineHeight = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("KaliBox log", logText))
+                    vm.notice.value = "Log copied. Paste it in the chat."
+                    showLog = false
+                }) { Text("Copy all") }
+            },
+            dismissButton = { TextButton(onClick = { showLog = false }) { Text("Close") } },
+        )
     }
 
     if (confirmReset) {
