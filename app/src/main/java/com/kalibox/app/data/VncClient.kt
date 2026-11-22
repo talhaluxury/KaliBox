@@ -31,6 +31,7 @@ class VncClient(
     @Volatile var fbW = 0
     @Volatile var fbH = 0
     @Volatile var connected = false
+    @Volatile private var gotPixels = false
     private var fb = IntArray(0)
 
     @Volatile private var running = true
@@ -124,7 +125,17 @@ class VncClient(
         request(false)
         s.soTimeout = 0 // the server only talks when the screen changes
         connected = true
+        gotPixels = false
         listener.onStatus("")
+        // if the server sent no pixels yet (idle desktop + incremental requests = silence), ask for the full screen again
+        Thread({
+            var tries = 0
+            while (running && connected && !gotPixels && tries < 10) {
+                try { Thread.sleep(1500) } catch (_: InterruptedException) { }
+                if (running && connected && !gotPixels) request(false)
+                tries++
+            }
+        }, "vnc-kick").also { it.isDaemon = true }.start()
 
         // --- main loop
         while (running) {
@@ -132,6 +143,7 @@ class VncClient(
                 0 -> {
                     input.readUnsignedByte()
                     val rects = input.readUnsignedShort()
+                    var sizeChanged = false
                     for (i in 0 until rects) {
                         val x = input.readUnsignedShort()
                         val y = input.readUnsignedShort()
@@ -140,12 +152,13 @@ class VncClient(
                         when (val enc = input.readInt()) {
                             0 -> readRaw(input, x, y, rw, rh)
                             1 -> copyRect(input, x, y, rw, rh)
-                            -223 -> resize(rw, rh)
+                            -223 -> { resize(rw, rh); sizeChanged = true }
                             else -> throw IOException("unsupported encoding $enc")
                         }
                     }
                     listener.onUpdate()
-                    request(true)
+                    // after a desktop resize the framebuffer is empty: ask for the full screen, not just changes
+                    request(!sizeChanged)
                 }
                 1 -> throw IOException("colour maps are not supported")
                 2 -> { /* bell */ }
@@ -173,6 +186,7 @@ class VncClient(
     private fun readRaw(input: DataInputStream, x: Int, y: Int, rw: Int, rh: Int) {
         val buf = ByteArray(rw * rh * 4)
         input.readFully(buf)
+        gotPixels = true
         synchronized(lock) {
             if (x + rw > fbW || y + rh > fbH) return
             var p = 0
