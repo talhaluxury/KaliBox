@@ -123,7 +123,7 @@ class VncView(context: Context) : View(context), VncClient.Listener {
 
     private fun sendMask(mask: Int) { client?.pointer(px.toInt(), py.toInt(), mask) }
 
-    private fun cancelLongPress() {
+    private fun cancelPendingLongPress() {
         longPress?.let { handler.removeCallbacks(it) }
         longPress = null
     }
@@ -160,7 +160,7 @@ class VncView(context: Context) : View(context), VncClient.Listener {
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (!multi) {
                     multi = true
-                    cancelLongPress()
+                    cancelPendingLongPress()
                     if (!touchpad) sendMask(0)
                 }
                 lastAvgY = avgY(e)
@@ -175,7 +175,7 @@ class VncView(context: Context) : View(context), VncClient.Listener {
                     while (scrollAcc >= 40f) { sendMask(8); sendMask(0); scrollAcc -= 40f }   // wheel up
                     while (scrollAcc <= -40f) { sendMask(16); sendMask(0); scrollAcc += 40f } // wheel down
                 } else if (!multi) {
-                    if (!moved && hypot(e.x - downX, e.y - downY) > slop) { moved = true; cancelLongPress() }
+                    if (!moved && hypot(e.x - downX, e.y - downY) > slop) { moved = true; cancelPendingLongPress() }
                     if (touchpad) {
                         if (moved) {
                             px = (px + (e.x - lastX) / scale * 1.6f).coerceIn(0f, (fbW() - 1).coerceAtLeast(0).toFloat())
@@ -191,7 +191,7 @@ class VncView(context: Context) : View(context), VncClient.Listener {
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                cancelLongPress()
+                cancelPendingLongPress()
                 if (!multi && !longFired) {
                     if (touchpad) {
                         if (e.actionMasked == MotionEvent.ACTION_UP && !moved && e.eventTime - downTime < 350) {
