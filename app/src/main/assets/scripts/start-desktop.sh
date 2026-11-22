@@ -24,9 +24,20 @@ start_vnc() {
   "$VNCSERVER" :1 -geometry "$GEOM" -depth 24 -localhost yes -SecurityTypes VncAuth \
     -xstartup /root/.vnc/xstartup 2>&1
 }
+# noVNC 1.6 in Kali has a touch bug (GestureHandler._touchEnd: "Cannot set properties of undefined").
+# Serve a patched copy so touching the screen does not pop up the red error dialog.
+prepare_novnc() {
+  rm -rf /root/.kalibox/novnc
+  cp -r /usr/share/novnc /root/.kalibox/novnc 2>/dev/null || return 1
+  GH=/root/.kalibox/novnc/core/input/gesturehandler.js
+  [ -f "$GH" ] && sed -i 's/^\( *\)this\._tracked\[\([^]]*\)\]\.\([A-Za-z]*\) = \(.*\);/\1if (this._tracked[\2]) this._tracked[\2].\3 = \4;/' "$GH"
+  return 0
+}
 start_ws() {
-  echo "[desktop] starting websockify/noVNC on 127.0.0.1:6080"
-  websockify --web /usr/share/novnc 127.0.0.1:6080 127.0.0.1:5901 >/tmp/websockify.log 2>&1 &
+  WEBDIR=/usr/share/novnc
+  prepare_novnc && WEBDIR=/root/.kalibox/novnc
+  echo "[desktop] starting websockify/noVNC ($WEBDIR) on 127.0.0.1:6080"
+  websockify --web "$WEBDIR" 127.0.0.1:6080 127.0.0.1:5901 >/tmp/websockify.log 2>&1 &
 }
 
 start_vnc

@@ -103,6 +103,8 @@ fun DesktopScreen(vm: MainViewModel, onExit: () -> Unit) {
                     settings.useWideViewPort = true
                     keepScreenOn = true
                     setBackgroundColor(android.graphics.Color.BLACK)
+                    // some devices draw noVNC's <canvas> as blank with the GPU layer
+                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(v: WebView, url: String?) {
                             v.evaluateJavascript(js, null)
