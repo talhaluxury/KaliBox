@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+app/build/
+*.jks
+*.keystore
+!app/debug.keystore
+# proot binaries are downloaded by scripts/fetch-proot.sh during CI
+app/src/main/jniLibs/

@@ -1,0 +1,22 @@
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
+export LANG=C.UTF-8
+export NO_AT_BRIDGE=1
+export LIBGL_ALWAYS_SOFTWARE=1
+export MOZ_DISABLE_CONTENT_SANDBOX=1
+export MOZ_FAKE_NO_SANDBOX=1
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+[ -f "$HOME/.Xresources" ] && xrdb "$HOME/.Xresources"
+# Run the session, and make sure the panel is up (it sometimes crashes on first start in proot)
+exec dbus-launch --exit-with-session bash -c '
+  startxfce4 &
+  SP=$!
+  sleep 12
+  pgrep -x xfce4-panel >/dev/null || (xfce4-panel >/dev/null 2>&1 &)
+  wait $SP
+'
