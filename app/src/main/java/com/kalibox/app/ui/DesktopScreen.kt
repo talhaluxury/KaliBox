@@ -83,7 +83,10 @@ fun DesktopScreen(vm: MainViewModel, onExit: () -> Unit) {
         val w = web ?: return@LaunchedEffect
         if (state == DesktopState.RUNNING) {
             val pw = Uri.encode(vm.prefs.vncPassword ?: "")
-            w.loadUrl("http://127.0.0.1:${Constants.NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1500&password=$pw")
+            // let the WebView get its real size first: noVNC computes its scale from the container size
+            w.postDelayed({
+                w.loadUrl("http://127.0.0.1:${Constants.NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1500&password=$pw")
+            }, 700)
         }
     }
 
@@ -104,6 +107,10 @@ fun DesktopScreen(vm: MainViewModel, onExit: () -> Unit) {
                         override fun onPageFinished(v: WebView, url: String?) {
                             v.evaluateJavascript(js, null)
                             v.evaluateJavascript("kbSetTouchpad(${vm.prefs.touchpad})", null)
+                            // force noVNC to recompute its scale once the layout has settled
+                            for (t in longArrayOf(1500, 4000, 8000)) {
+                                v.postDelayed({ v.evaluateJavascript("window.dispatchEvent(new Event('resize'))", null) }, t)
+                            }
                         }
                         override fun onReceivedError(v: WebView, r: WebResourceRequest, e: WebResourceError) {
                             if (r.isForMainFrame && DesktopController.state.value == DesktopState.RUNNING) {
@@ -152,6 +159,11 @@ fun DesktopScreen(vm: MainViewModel, onExit: () -> Unit) {
                     }
                     Tb("Touchpad", pad) { pad = !pad; vm.prefs.touchpad = pad; evalJs("kbSetTouchpad($pad)") }
                     Tb("Hold", hold) { hold = !hold; evalJs("kbHold($hold)") }
+                    Tb("Browser") {
+                        val pw = Uri.encode(vm.prefs.vncPassword ?: "")
+                        val u = "http://127.0.0.1:${Constants.NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&password=$pw"
+                        try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(u))) } catch (_: Exception) { }
+                    }
                     Tb("⌂") { onExit() }
                     Tb("✕ Stop") { vm.stopDesktop() }
                 }
