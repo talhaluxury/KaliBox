@@ -13,7 +13,7 @@ CONF
 echo "==> apt update"
 apt-get update
 
-PKGS="kali-desktop-xfce tigervnc-standalone-server dbus-x11 novnc websockify firefox-esr xfce4-terminal fonts-dejavu-core fonts-liberation locales procps"
+PKGS="kali-desktop-xfce tigervnc-standalone-server tigervnc-tools dbus-x11 novnc websockify firefox-esr xfce4-terminal desktop-base librsvg2-common shared-mime-info adwaita-icon-theme fonts-dejavu-core fonts-liberation locales procps"
 echo "==> installing Kali XFCE + VNC + noVNC + Firefox (large download, be patient)"
 ok=0
 for i in 1 2 3 4; do
@@ -23,6 +23,7 @@ for i in 1 2 3 4; do
   sleep 5
 done
 [ "$ok" = 1 ] || { echo "Desktop install failed after 4 attempts."; exit 1; }
+install -m 755 /root/.kalibox/fake-bwrap /usr/local/bin/bwrap 2>/dev/null || true
 echo "==> configuring locale"
 sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true
 locale-gen >/dev/null 2>&1 || true

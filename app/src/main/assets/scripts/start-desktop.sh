@@ -5,6 +5,8 @@ GEOM="${GEOMETRY:-1280x720}"
 VNCSERVER="$(command -v vncserver || command -v tigervncserver || true)"
 [ -n "$VNCSERVER" ] || { echo "[desktop] ERROR: vncserver/tigervncserver not found"; exit 127; }
 mkdir -p "$XDG_RUNTIME_DIR" /tmp/.X11-unix /run/dbus
+# bubblewrap cannot work in proot; GTK image loaders need this shim
+install -m 755 /root/.kalibox/fake-bwrap /usr/local/bin/bwrap 2>/dev/null || true
 chmod 700 "$XDG_RUNTIME_DIR"
 chmod 1777 /tmp/.X11-unix
 dbus-uuidgen --ensure 2>/dev/null || true
@@ -15,6 +17,8 @@ clean() {
 }
 start_vnc() {
   clean
+  mkdir -p /root/.vnc
+  install -m 755 /root/.kalibox/xstartup /root/.vnc/xstartup 2>/dev/null || true
   echo "[desktop] starting vncserver :1 ($GEOM)"
   # localhost ONLY: never reachable from the network
   "$VNCSERVER" :1 -geometry "$GEOM" -depth 24 -localhost yes -SecurityTypes VncAuth \

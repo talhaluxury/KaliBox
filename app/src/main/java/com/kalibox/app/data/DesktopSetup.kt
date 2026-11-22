@@ -6,7 +6,7 @@ import com.kalibox.app.util.Constants
 import java.io.File
 
 object DesktopSetup {
-    private val scripts = listOf("install-desktop.sh", "start-desktop.sh", "set-vnc-password.sh", "xstartup")
+    private val scripts = listOf("install-desktop.sh", "start-desktop.sh", "set-vnc-password.sh", "xstartup", "fake-bwrap")
 
     /** Copies helper scripts from assets into /root/.kalibox inside the rootfs. */
     fun writeScripts(ctx: Context, rootfs: File) {

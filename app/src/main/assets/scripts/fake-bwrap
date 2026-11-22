@@ -1,0 +1,20 @@
+#!/bin/bash
+# Minimal "bwrap" replacement for proot. GTK's image loaders (glycin) start every loader inside
+# bubblewrap, which cannot work without user namespaces. This shim drops all sandbox options and
+# simply runs the loader command, so icons/SVGs load and the XFCE panel stops crashing.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --setenv) export "$2=$3"; shift 3 ;;
+    --unsetenv) unset "$2"; shift 2 ;;
+    --chdir) cd "$2" 2>/dev/null || true; shift 2 ;;
+    --ro-bind|--ro-bind-try|--bind|--bind-try|--dev-bind|--dev-bind-try|--symlink|--chmod|--file|--bind-data|--ro-bind-data)
+      shift 3 ;;
+    --tmpfs|--dir|--dev|--proc|--mqueue|--seccomp|--add-seccomp-fd|--sync-fd|--info-fd|--json-status-fd|--block-fd|--userns-block-fd|--uid|--gid|--hostname|--perms|--size|--args|--cap-add|--cap-drop|--exec-label|--file-label|--lock-file|--remount-ro|--userns|--userns2|--pidns|--assert-userns-disabled)
+      shift 2 ;;
+    --) shift; break ;;
+    --*) shift ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || exit 0
+exec "$@"

@@ -51,7 +51,7 @@ fun SettingsScreen(vm: MainViewModel) {
     var resolution by remember { mutableStateOf(vm.prefs.resolution) }
     var scheme by remember { mutableStateOf(vm.prefs.colorScheme) }
     var newPw by remember { mutableStateOf("") }
-    val picked = remember { mutableStateListOf<String>().apply { addAll(Tools.all.map { it.label }) } }
+    val picked = remember { mutableStateListOf<String>().apply { addAll(Tools.all.map { it.label }.filter { l -> !l.startsWith("kali-tools") && !l.startsWith("metasploit") && !l.startsWith("wireless") && !l.startsWith("usb") }) } }
 
     LaunchedEffect(Unit) { vm.refreshStorage() }
 

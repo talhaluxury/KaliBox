@@ -34,5 +34,5 @@ else
   echo "VNC password saved (openssl fallback)."
 fi
 chmod 600 /root/.vnc/passwd
-cp /root/.vnc/passwd /root/.config/tigervnc/passwd
-chmod 600 /root/.config/tigervnc/passwd
+cp -f /root/.vnc/passwd /root/.config/tigervnc/passwd 2>/dev/null || true   # may be the same file/symlink
+chmod 600 /root/.config/tigervnc/passwd 2>/dev/null || true

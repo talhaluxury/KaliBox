@@ -22,10 +22,15 @@ object RootfsConfigurator {
         write("etc/resolv.conf", "nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
         write("etc/hosts", "127.0.0.1 localhost\n127.0.1.1 kali\n::1 localhost ip6-localhost ip6-loopback\n")
         write("etc/hostname", "kali\n")
-        write(
-            "etc/apt/sources.list",
-            "deb http://http.kali.org/kali kali-rolling main contrib non-free non-free-firmware\n",
-        )
+        // Newer rootfs images ship /etc/apt/sources.list.d/kali.sources: do not configure the same repo twice
+        if (File(rootfs, "etc/apt/sources.list.d/kali.sources").exists()) {
+            write("etc/apt/sources.list", "# Kali repository is configured in /etc/apt/sources.list.d/kali.sources\n")
+        } else {
+            write(
+                "etc/apt/sources.list",
+                "deb http://http.kali.org/kali kali-rolling main contrib non-free non-free-firmware\n",
+            )
+        }
         write(
             "etc/apt/apt.conf.d/99kalibox",
             "APT::Sandbox::User \"root\";\nAcquire::Retries \"3\";\nDpkg::Progress-Fancy \"0\";\n" +
