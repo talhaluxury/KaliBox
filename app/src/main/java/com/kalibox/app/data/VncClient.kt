@@ -73,13 +73,18 @@ class VncClient(
         val s = Socket()
         s.connect(InetSocketAddress(host, port), 5000)
         s.tcpNoDelay = true
+        s.soTimeout = 15000 // handshake must answer, otherwise show an error instead of hanging forever
         socket = s
+        listener.onStatus("Connected to port $port, waiting for the VNC server…")
         val input = DataInputStream(BufferedInputStream(s.getInputStream(), 1 shl 16))
         val output = s.getOutputStream()
         out = output
 
         // --- handshake
-        input.readFully(ByteArray(12))
+        try { input.readFully(ByteArray(12)) } catch (e: java.net.SocketTimeoutException) {
+            throw IOException("VNC server accepted the connection but sent no greeting")
+        }
+        listener.onStatus("Logging in…")
         output.write("RFB 003.008\n".toByteArray()); output.flush()
         val n = input.readUnsignedByte()
         if (n == 0) {
@@ -94,6 +99,7 @@ class VncClient(
         output.write(VncAuth.response(password, challenge)); output.flush()
         if (input.readInt() != 0) throw IOException("wrong VNC password")
         output.write(byteArrayOf(1)); output.flush() // shared
+        listener.onStatus("Loading screen…")
 
         val w = input.readUnsignedShort()
         val h = input.readUnsignedShort()
@@ -116,6 +122,7 @@ class VncClient(
         output.write(int32(1)); output.write(int32(0)); output.write(int32(-223))
         output.flush()
         request(false)
+        s.soTimeout = 0 // the server only talks when the screen changes
         connected = true
         listener.onStatus("")
 

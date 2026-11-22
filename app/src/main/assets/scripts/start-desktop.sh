@@ -23,6 +23,12 @@ start_vnc() {
   # localhost ONLY: never reachable from the network
   "$VNCSERVER" :1 -geometry "$GEOM" -depth 24 -localhost yes -SecurityTypes VncAuth \
     -xstartup /root/.vnc/xstartup 2>&1
+  # wait until the VNC port really answers, then print the server log so problems show up in the app log
+  for i in $(seq 1 40); do
+    (exec 3<>/dev/tcp/127.0.0.1/5901) 2>/dev/null && { echo "[desktop] VNC port 5901 is open"; break; }
+    sleep 1
+  done
+  for f in /root/.vnc/*.log; do [ -f "$f" ] && { echo "[desktop] --- $f"; tail -n 25 "$f"; }; done
 }
 # noVNC 1.6 in Kali has a touch bug (GestureHandler._touchEnd: "Cannot set properties of undefined").
 # Serve a patched copy so touching the screen does not pop up the red error dialog.

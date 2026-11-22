@@ -57,7 +57,7 @@ object DesktopController {
                 var ready = false
                 var waited = 0
                 while (!ready && p.isAlive && waited < 150 && !stopping) {
-                    if (portOpen(Constants.NOVNC_PORT)) {
+                    if (portOpen(Constants.NOVNC_PORT) && portOpen(Constants.VNC_PORT)) {
                         ready = true
                         state.value = DesktopState.RUNNING
                     } else {
@@ -65,7 +65,7 @@ object DesktopController {
                         waited++
                     }
                 }
-                if (!ready && p.isAlive && !stopping) AppLog.e(TAG, "noVNC not reachable after ${waited}s")
+                if (!ready && p.isAlive && !stopping) AppLog.e(TAG, "VNC server (port ${Constants.VNC_PORT}) / noVNC not reachable after ${waited}s")
                 p.waitFor()
                 reader.cancel()
             } catch (e: CancellationException) {
