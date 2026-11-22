@@ -51,9 +51,81 @@ import com.kalibox.app.service.DesktopController
 import com.kalibox.app.service.DesktopState
 import com.kalibox.app.util.Constants
 
-@SuppressLint("SetJavaScriptEnabled")
+/**
+ * Desktop entry screen. The desktop is shown in the browser (Chrome) because that renders reliably
+ * on every phone; the in-app WebView is kept as an optional "embedded view".
+ */
 @Composable
 fun DesktopScreen(vm: MainViewModel, onExit: () -> Unit) {
+    val ctx = LocalContext.current
+    val state by DesktopController.state.collectAsState()
+    val err by DesktopController.error.collectAsState()
+    var embedded by remember { mutableStateOf(false) }
+    var autoOpened by remember { mutableStateOf(false) }
+
+    fun openBrowser() {
+        val pw = Uri.encode(vm.prefs.vncPassword ?: "")
+        val u = Uri.parse("http://127.0.0.1:${Constants.NOVNC_PORT}/vnc.html?autoconnect=true&resize=scale&reconnect=true&password=$pw")
+        val chrome = android.content.Intent(android.content.Intent.ACTION_VIEW, u).setPackage("com.android.chrome")
+        try {
+            ctx.startActivity(chrome)
+        } catch (_: Exception) {
+            try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, u)) } catch (_: Exception) { }
+        }
+    }
+
+    LaunchedEffect(state) {
+        if (state == DesktopState.RUNNING && !autoOpened && !embedded) {
+            autoOpened = true
+            openBrowser()
+        }
+    }
+
+    if (embedded) {
+        EmbeddedDesktop(vm) { embedded = false }
+        return
+    }
+
+    BackHandler { onExit() }
+    Column(
+        Modifier.fillMaxSize().background(Color.Black).padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        when (state) {
+            DesktopState.RUNNING -> {
+                Text("Kali desktop is running", color = Color.White, fontSize = 20.sp)
+                Text(
+                    "It opens in Chrome. Use landscape. Tap the small arrow on the left edge of the page for the noVNC panel (keyboard, full screen).",
+                    color = Color(0xCCFFFFFF), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp),
+                )
+                Button(onClick = { openBrowser() }, Modifier.fillMaxWidth()) { Text("Open desktop in Chrome") }
+                OutlinedButton(onClick = { embedded = true }, Modifier.fillMaxWidth()) { Text("Embedded view (experimental)") }
+                OutlinedButton(onClick = { vm.stopDesktop() }, Modifier.fillMaxWidth()) { Text("Stop desktop") }
+                TextButton(onClick = onExit) { Text("Back") }
+            }
+            DesktopState.ERROR -> {
+                Text(err ?: "The desktop failed to start.", color = Color.White)
+                Button(onClick = { vm.onStartDesktop() }) { Text("Retry") }
+                OutlinedButton(onClick = onExit) { Text("Back") }
+            }
+            DesktopState.STOPPED -> {
+                Text("Desktop is stopped.", color = Color.White)
+                Button(onClick = { vm.onStartDesktop() }) { Text("Start") }
+                OutlinedButton(onClick = onExit) { Text("Back") }
+            }
+            DesktopState.STARTING -> {
+                CircularProgressIndicator()
+                Text("Starting Kali desktop… (first start can take a minute)", color = Color.White, modifier = Modifier.padding(top = 12.dp))
+                OutlinedButton(onClick = onExit, Modifier.padding(top = 12.dp)) { Text("Back") }
+            }
+        }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun EmbeddedDesktop(vm: MainViewModel, onExit: () -> Unit) {
     val ctx = LocalContext.current
     val view = LocalView.current
     val state by DesktopController.state.collectAsState()
